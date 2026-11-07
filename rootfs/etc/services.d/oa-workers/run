@@ -1,0 +1,11 @@
+#!/command/with-contenv bash
+# Ingestion, indexing and scheduler workers (upstream's start:workers, which
+# restarts each worker on its own if it crashes).
+# shellcheck disable=SC1091
+. /config/.runtime-env
+
+until curl -fsS -o /dev/null "http://127.0.0.1:${PORT_BACKEND:-4000}/v1/auth/status"; do sleep 2; done
+
+cd /app || exit 1
+echo "[oa-workers] Starting ingestion, indexing and scheduler workers."
+exec pnpm start:workers 2>&1

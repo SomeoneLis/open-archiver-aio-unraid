@@ -89,6 +89,7 @@ fi
         REDIS_PASSWORD "$REDIS_PASSWORD" \
         REDIS_TLS_ENABLED "false" \
         JWT_SECRET "$JWT_SECRET" \
+        JWT_EXPIRES_IN "${JWT_EXPIRES_IN:-7d}" \
         ENCRYPTION_KEY "$ENCRYPTION_KEY" \
         APP_URL "$APP_URL" \
         ORIGIN "$ORIGIN" \

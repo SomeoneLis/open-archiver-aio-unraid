@@ -1,0 +1,11 @@
+#!/command/with-contenv bash
+# Open Archiver web UI (SvelteKit, port 3000). It proxies /api to the backend.
+# shellcheck disable=SC1091
+. /config/.runtime-env
+
+until curl -fsS -o /dev/null "http://127.0.0.1:${PORT_BACKEND:-4000}/v1/auth/status"; do sleep 2; done
+
+cd /app/packages/frontend || exit 1
+export PORT="${PORT_FRONTEND:-3000}" HOST=0.0.0.0
+echo "[oa-frontend] Starting web UI on port ${PORT}."
+exec node build/index.js 2>&1

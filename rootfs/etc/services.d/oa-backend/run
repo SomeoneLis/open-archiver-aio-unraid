@@ -1,0 +1,30 @@
+#!/command/with-contenv bash
+# Open Archiver API (port 4000). Runs the database migrations first, so the
+# web UI and workers wait for this service before they start.
+# shellcheck disable=SC1091
+. /config/.runtime-env
+cd /app || exit 1
+
+wait_for() {
+    local name="$1"; shift
+    local n=0
+    until "$@" >/dev/null 2>&1; do
+        n=$((n + 1))
+        if [ $((n % 15)) -eq 0 ]; then echo "[oa-backend] Still waiting for $name..."; fi
+        sleep 2
+    done
+}
+
+wait_for "PostgreSQL" /usr/libexec/postgresql17/pg_isready -h 127.0.0.1 -p 5432
+wait_for "Valkey" env REDISCLI_AUTH="$REDIS_PASSWORD" valkey-cli -h 127.0.0.1 ping
+wait_for "Meilisearch" curl -fsS http://127.0.0.1:7700/health
+
+echo "[oa-backend] Running database migrations..."
+if ! (cd /app/packages/backend && node dist/database/migrate.js); then
+    echo "[oa-backend] Migrations failed; retrying in 10s."
+    sleep 10
+    exit 1
+fi
+
+echo "[oa-backend] Starting Open Archiver ${OA_AIO_VERSION:-} API on port ${PORT_BACKEND:-4000}."
+exec node apps/open-archiver/dist/index.js 2>&1

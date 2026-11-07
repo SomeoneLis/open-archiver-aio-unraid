@@ -90,7 +90,7 @@ The template sets `--stop-timeout 60` so PostgreSQL and Meilisearch shut down cl
 ```
 Dockerfile                      Official Open Archiver image + PostgreSQL, Valkey, Meilisearch, Tika, s6
 rootfs/etc/cont-init.d/         Secrets, PostgreSQL init and hardening, Meilisearch upgrade handling
-rootfs/etc/services.d/          postgres, valkey, meilisearch, tika, open-archiver
+rootfs/etc/services.d/          postgres, valkey, meilisearch, tika, oa-backend, oa-frontend, oa-workers
 rootfs/usr/local/bin/oa-healthcheck
 .github/workflows/build.yml     Daily upstream check, build, smoke test, push to GHCR
 templates/open-archiver-aio.xml Unraid template
