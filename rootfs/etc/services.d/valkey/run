@@ -1,2 +1,3 @@
 #!/command/with-contenv bash
-exec su-exec valkey valkey-server /config/valkey/valkey.conf 2>&1
+VALKEY_USER="$(cat /run/oa/valkey-user 2>/dev/null || echo valkey)"
+exec su-exec "$VALKEY_USER" valkey-server /config/valkey/valkey.conf 2>&1

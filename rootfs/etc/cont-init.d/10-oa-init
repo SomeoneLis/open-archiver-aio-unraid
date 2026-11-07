@@ -113,8 +113,11 @@ if [ "$(stat -c '%U' "$PGDATA")" != "postgres" ]; then
     chown -R postgres:postgres "$PGDATA"
 fi
 chmod 700 "$PGDATA"
-if [ "$(stat -c '%U' "$VALKEY_DIR")" != "valkey" ]; then
-    chown -R valkey:valkey "$VALKEY_DIR"
+VALKEY_USER=valkey
+id -u valkey >/dev/null 2>&1 || VALKEY_USER=root
+echo "$VALKEY_USER" > /run/oa/valkey-user
+if [ "$(stat -c '%U' "$VALKEY_DIR")" != "$VALKEY_USER" ]; then
+    chown -R "$VALKEY_USER:$VALKEY_USER" "$VALKEY_DIR"
 fi
 
 # --- Valkey config (password kept out of the process list) ---
@@ -130,7 +133,7 @@ appendfsync everysec
 save 900 1 300 10
 maxmemory-policy noeviction
 EOF
-chown valkey:valkey "$VALKEY_DIR/valkey.conf"
+chown "$VALKEY_USER:$VALKEY_USER" "$VALKEY_DIR/valkey.conf"
 chmod 600 "$VALKEY_DIR/valkey.conf"
 
 # --- PostgreSQL 17 ---
@@ -172,9 +175,12 @@ if ! grep -q "^include_if_exists = 'postgresql.auto.aio.conf'" "$PGDATA/postgres
 fi
 
 log "Provisioning database role and database..."
+# pg_ctl opens the log as the postgres user, so the file must belong to postgres
+touch "$PG_LOG"
+chown postgres:postgres "$PG_LOG"
 su-exec postgres "$PGBIN/pg_ctl" -D "$PGDATA" -l "$PG_LOG" -w -t 120 start >/dev/null
 export PGPASSWORD="$PG_SUPER_PASSWORD"
-PSQL=(psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -tAq)
+PSQL=("$PGBIN/psql" -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -tAq)
 
 if ! "${PSQL[@]}" -c "SELECT 1 FROM pg_roles WHERE rolname='openarchiver'" | grep -q 1; then
     "${PSQL[@]}" -c "CREATE ROLE openarchiver LOGIN PASSWORD '${PG_PASSWORD}'"

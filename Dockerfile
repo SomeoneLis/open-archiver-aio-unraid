@@ -49,6 +49,8 @@ RUN apk add --no-cache \
     && (command -v valkey-cli >/dev/null 2>&1 || apk add --no-cache valkey-cli) \
     && command -v valkey-server && command -v valkey-cli \
     && test -x /usr/libexec/postgresql17/postgres \
+    && test -x /usr/libexec/postgresql17/psql \
+    && test -x /usr/libexec/postgresql17/pg_isready \
     && java -version
 
 # 2. s6-overlay v3

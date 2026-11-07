@@ -13,7 +13,7 @@ wait_for() {
     done
 }
 
-wait_for "PostgreSQL" pg_isready -h 127.0.0.1 -p 5432
+wait_for "PostgreSQL" /usr/libexec/postgresql17/pg_isready -h 127.0.0.1 -p 5432
 wait_for "Valkey" env REDISCLI_AUTH="$REDIS_PASSWORD" valkey-cli -h 127.0.0.1 ping
 wait_for "Meilisearch" curl -fsS http://127.0.0.1:7700/health
 

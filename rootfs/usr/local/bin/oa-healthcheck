@@ -3,7 +3,7 @@
 . /config/.runtime-env 2>/dev/null || exit 1
 curl -fsS -o /dev/null "http://127.0.0.1:${PORT_FRONTEND:-3000}/" || exit 1
 curl -fsS -o /dev/null "http://127.0.0.1:${PORT_BACKEND:-4000}/v1/auth/status" || exit 1
-pg_isready -q -h 127.0.0.1 -p 5432 || exit 1
+/usr/libexec/postgresql17/pg_isready -q -h 127.0.0.1 -p 5432 || exit 1
 REDISCLI_AUTH="$REDIS_PASSWORD" valkey-cli -h 127.0.0.1 ping 2>/dev/null | grep -q PONG || exit 1
 curl -fsS -o /dev/null http://127.0.0.1:7700/health || exit 1
 exit 0

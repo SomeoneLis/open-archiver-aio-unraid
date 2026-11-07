@@ -132,32 +132,36 @@ jobs:
             -v /tmp/oa/config:/config -v /tmp/oa/data:/data \
             "${IMAGE}:${OA_VERSION}"
 
-          STATUS=starting
-          for i in $(seq 1 60); do
-            STATUS="$(docker inspect -f '{{.State.Health.Status}}' oa-test 2>/dev/null || echo gone)"
-            echo "[$i] health: $STATUS"
-            [ "$STATUS" = "healthy" ] && break
-            [ "$STATUS" = "gone" ] && break
-            sleep 10
-          done
+          # Wait until healthy; stop early if the container exits. $1 = label, $2 = max checks (10s apart)
+          wait_healthy() {
+            local status running
+            for i in $(seq 1 "$2"); do
+              running="$(docker inspect -f '{{.State.Running}}' oa-test 2>/dev/null || echo false)"
+              status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' oa-test 2>/dev/null || echo gone)"
+              echo "[$1 $i] running=$running health=$status"
+              [ "$status" = "healthy" ] && return 0
+              [ "$running" != "true" ] && return 1
+              sleep 10
+            done
+            return 1
+          }
 
-          docker logs oa-test 2>&1 | tail -n 150
+          RESULT=0
+          wait_healthy boot 60 || RESULT=1
+          docker logs oa-test 2>&1 | tail -n 200
+          test "$RESULT" -eq 0
 
-          test "$STATUS" = "healthy"
           docker exec oa-test curl -fsS http://127.0.0.1:9998/version
           echo
           curl -fsS -o /dev/null -w "Web UI HTTP %{http_code}\n" http://localhost:3000/
 
           # Restart once to prove the second-boot path (existing database and secrets) works too
           docker restart -t 60 oa-test
-          for i in $(seq 1 30); do
-            STATUS="$(docker inspect -f '{{.State.Health.Status}}' oa-test)"
-            echo "[restart $i] health: $STATUS"
-            [ "$STATUS" = "healthy" ] && break
-            sleep 10
-          done
-          docker logs --since 5m oa-test 2>&1 | tail -n 60
-          test "$STATUS" = "healthy"
+          sleep 5
+          RESULT=0
+          wait_healthy restart 30 || RESULT=1
+          docker logs --since 5m oa-test 2>&1 | tail -n 80
+          test "$RESULT" -eq 0
 
       - name: Push image
         if: env.SHOULD_BUILD == 'true'
