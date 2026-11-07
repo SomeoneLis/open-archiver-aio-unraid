@@ -1,0 +1,51 @@
+{
+  "manifest_version": "0.2",
+  "name": "open-archiver",
+  "display_name": "Open Archiver",
+  "version": "1.0.0",
+  "description": "Search, read and (with your approval) delete emails in your self-hosted Open Archiver.",
+  "long_description": "Connects Claude to your Open Archiver email archive on your home network. Tools: search_emails, get_email, archive_overview (read-only) and delete_emails (permanent, needs Allow Deletion on the server). Runs locally on this computer, has no third-party dependencies and opens no ports. The API key is stored in the operating system's secure store.",
+  "author": { "name": "SomeoneLis" },
+  "repository": { "type": "git", "url": "https://github.com/SomeoneLis/open-archiver-aio-unraid" },
+  "homepage": "https://github.com/SomeoneLis/open-archiver-aio-unraid/tree/main/mcp",
+  "license": "AGPL-3.0",
+  "keywords": ["email", "archive", "open-archiver", "search", "pst"],
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.js"],
+      "env": {
+        "OA_URL": "${user_config.oa_url}",
+        "OA_API_KEY": "${user_config.oa_api_key}"
+      }
+    }
+  },
+  "tools": [
+    { "name": "search_emails", "description": "Full-text search of the archive, including attachment text (read-only)." },
+    { "name": "get_email", "description": "Read one archived email in full, with its thread (read-only)." },
+    { "name": "archive_overview", "description": "Archive totals, sources and indexing health (read-only)." },
+    { "name": "delete_emails", "description": "Permanently delete approved emails from the archive." }
+  ],
+  "compatibility": {
+    "platforms": ["win32", "darwin", "linux"],
+    "runtimes": { "node": ">=18.0.0" }
+  },
+  "user_config": {
+    "oa_url": {
+      "type": "string",
+      "title": "Open Archiver address",
+      "description": "The address you open in the browser, e.g. http://192.168.1.77:3000",
+      "default": "http://192.168.1.77:3000",
+      "required": true
+    },
+    "oa_api_key": {
+      "type": "string",
+      "title": "API key",
+      "description": "Create it in Open Archiver under Settings > API Keys, signed in as the dedicated Claude user.",
+      "sensitive": true,
+      "required": true
+    }
+  }
+}

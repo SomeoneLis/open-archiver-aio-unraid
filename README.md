@@ -96,6 +96,10 @@ rootfs/usr/local/bin/oa-healthcheck
 templates/open-archiver-aio.xml Unraid template
 ```
 
+## Claude connector
+
+The `mcp/` folder holds a Claude desktop extension that lets Claude search, read and (with your approval) delete archived emails. See [mcp/README.md](mcp/README.md).
+
 ## License
 
 Open Archiver is licensed under AGPL-3.0 by LogicLabs OÜ. The packaging in this repository is also AGPL-3.0.
