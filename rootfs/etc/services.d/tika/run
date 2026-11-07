@@ -4,7 +4,9 @@ if [ "${TIKA_ENABLED:-true}" != "true" ]; then
     exec sleep infinity
 fi
 
-cd /tmp || exit 1
+# Tika 4 resolves plugins/ relative to the working directory
+cd /opt/tika-server || exit 1
 # shellcheck disable=SC2086
 exec su-exec nobody java ${TIKA_JAVA_OPTS:--Xmx1g} -Djava.io.tmpdir=/tmp \
-    -jar /opt/tika/tika-server.jar -h 127.0.0.1 -p 9998 2>&1
+    -cp "/opt/tika-server/tika-server.jar:/opt/tika-server/lib/*" \
+    org.apache.tika.server.core.TikaServerCli -h 127.0.0.1 -p 9998 2>&1

@@ -10,14 +10,20 @@ ARG TIKA_VERSION=4.1.0
 # --- Meilisearch: the official image is Alpine/musl, so its binary runs as-is on the Alpine base ---
 FROM getmeili/meilisearch:${MEILI_VERSION} AS meili
 
-# --- Apache Tika: take the server jar from the official image (no OCR stack) ---
+# --- Apache Tika: take the server from the official image (no OCR stack) ---
+# Tika 4.x ships /opt/tika-server (thin tika-server.jar + lib/ + plugins/); Tika 3.x ships one fat jar.
+# Both end up as /out/tika-server/tika-server.jar (+ lib/), started with the same classpath.
 FROM apache/tika:${TIKA_VERSION} AS tika
 USER root
-RUN mkdir -p /out \
-    && JAR="$(find / -xdev -type f -name 'tika-server-standard-*.jar' 2>/dev/null | head -n 1)" \
-    && echo "Found Tika server jar: ${JAR}" \
-    && test -n "${JAR}" \
-    && cp "${JAR}" /out/tika-server.jar
+RUN mkdir -p /out/tika-server/lib \
+    && if [ -f /opt/tika-server/tika-server.jar ]; then \
+         cp -a /opt/tika-server/. /out/tika-server/; \
+       else \
+         JAR="$(find / -xdev -maxdepth 2 -type f -name 'tika-server-standard-*.jar' 2>/dev/null | head -n 1)"; \
+         test -n "${JAR}"; \
+         cp "${JAR}" /out/tika-server/tika-server.jar; \
+       fi \
+    && ls -la /out/tika-server
 
 # --- Final image: the official Open Archiver image (node:22-alpine) plus the companion services ---
 FROM logiclabshq/open-archiver:${OA_VERSION}
@@ -62,8 +68,10 @@ RUN tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz \
 
 # 3. Meilisearch and Tika
 COPY --from=meili /bin/meilisearch /usr/local/bin/meilisearch
-COPY --from=tika /out/tika-server.jar /opt/tika/tika-server.jar
-RUN meilisearch --version
+COPY --from=tika /out/tika-server /opt/tika-server
+RUN meilisearch --version \
+    && chown -R root:root /opt/tika-server \
+    && chmod -R a+rX /opt/tika-server
 
 # 4. s6 services, init script and healthcheck
 COPY rootfs/ /
