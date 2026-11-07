@@ -1,0 +1,2 @@
+#!/command/with-contenv bash
+exec su-exec postgres /usr/libexec/postgresql17/postgres -D /config/postgres 2>&1

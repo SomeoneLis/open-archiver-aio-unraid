@@ -1,0 +1,10 @@
+#!/command/with-contenv bash
+if [ "${TIKA_ENABLED:-true}" != "true" ]; then
+    echo "[tika] Disabled (TIKA_ENABLED=false); attachments use the built-in extractors."
+    exec sleep infinity
+fi
+
+cd /tmp || exit 1
+# shellcheck disable=SC2086
+exec su-exec nobody java ${TIKA_JAVA_OPTS:--Xmx1g} -Djava.io.tmpdir=/tmp \
+    -jar /opt/tika/tika-server.jar -h 127.0.0.1 -p 9998 2>&1

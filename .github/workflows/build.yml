@@ -1,0 +1,175 @@
+name: Build Open Archiver AIO Image
+
+on:
+  push:
+    branches: ["main"]
+    paths-ignore:
+      - "**.md"
+      - "templates/**"
+  schedule:
+    # Daily check for a new upstream release or a rebuilt upstream image
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+    inputs:
+      oa_version:
+        description: "Open Archiver release tag to build (blank = latest release)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: build-aio
+  cancel-in-progress: false
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set image name
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/open-archiver-aio" >> "$GITHUB_ENV"
+
+      - name: Resolve upstream versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED: ${{ github.event.inputs.oa_version }}
+        run: |
+          set -euo pipefail
+          OA_VERSION="${REQUESTED:-$(gh api repos/LogicLabs-OU/OpenArchiver/releases/latest --jq .tag_name)}"
+          COMPOSE="$(curl -fsSL "https://raw.githubusercontent.com/LogicLabs-OU/OpenArchiver/${OA_VERSION}/docker-compose.yml")"
+          MEILI_VERSION="$(printf '%s\n' "$COMPOSE" | grep -oE 'getmeili/meilisearch:[^[:space:]"'"'"']+' | head -n1 | cut -d: -f2)"
+          TIKA_VERSION="$(printf '%s\n' "$COMPOSE" | grep -oE 'apache/tika:[^[:space:]"'"'"']+' | head -n1 | cut -d: -f2 | sed 's/-full$//')"
+          test -n "$OA_VERSION" && test -n "$MEILI_VERSION" && test -n "$TIKA_VERSION"
+          echo "Open Archiver: $OA_VERSION | Meilisearch: $MEILI_VERSION | Tika: $TIKA_VERSION"
+          {
+            echo "OA_VERSION=$OA_VERSION"
+            echo "MEILI_VERSION=$MEILI_VERSION"
+            echo "TIKA_VERSION=$TIKA_VERSION"
+          } >> "$GITHUB_ENV"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check whether this release is already published
+        id: published
+        run: |
+          if docker manifest inspect "${IMAGE}:${OA_VERSION}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check whether the upstream image was rebuilt
+        id: base
+        if: github.event_name == 'schedule' && steps.published.outputs.exists == 'true'
+        uses: lucacome/docker-image-update-checker@v3
+        with:
+          base-image: logiclabshq/open-archiver:${{ env.OA_VERSION }}
+          image: ${{ env.IMAGE }}:${{ env.OA_VERSION }}
+          platforms: linux/amd64
+
+      - name: Decide
+        run: |
+          REASON=""
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            REASON="${{ github.event_name }}"
+          elif [ "${{ steps.published.outputs.exists }}" != "true" ]; then
+            REASON="new upstream release ${OA_VERSION}"
+          elif [ "${{ steps.base.outputs.needs-updating }}" = "true" ]; then
+            REASON="upstream image ${OA_VERSION} was rebuilt"
+          elif [ "$(date -u +%u)" = "7" ]; then
+            REASON="weekly refresh for Alpine security updates"
+          fi
+          if [ -n "$REASON" ]; then
+            echo "Building: $REASON"
+            echo "SHOULD_BUILD=true" >> "$GITHUB_ENV"
+          else
+            echo "Nothing new upstream; skipping."
+            echo "SHOULD_BUILD=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: Set up Docker Buildx
+        if: env.SHOULD_BUILD == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        if: env.SHOULD_BUILD == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          pull: true
+          load: true
+          push: false
+          build-args: |
+            OA_VERSION=${{ env.OA_VERSION }}
+            MEILI_VERSION=${{ env.MEILI_VERSION }}
+            TIKA_VERSION=${{ env.TIKA_VERSION }}
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ env.OA_VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test
+        if: env.SHOULD_BUILD == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/oa/config /tmp/oa/data
+          docker run -d --name oa-test -p 3000:3000 \
+            -e APP_URL=http://localhost:3000 \
+            -v /tmp/oa/config:/config -v /tmp/oa/data:/data \
+            "${IMAGE}:${OA_VERSION}"
+
+          STATUS=starting
+          for i in $(seq 1 60); do
+            STATUS="$(docker inspect -f '{{.State.Health.Status}}' oa-test 2>/dev/null || echo gone)"
+            echo "[$i] health: $STATUS"
+            [ "$STATUS" = "healthy" ] && break
+            [ "$STATUS" = "gone" ] && break
+            sleep 10
+          done
+
+          docker logs oa-test 2>&1 | tail -n 150
+
+          test "$STATUS" = "healthy"
+          docker exec oa-test curl -fsS http://127.0.0.1:9998/version
+          echo
+          curl -fsS -o /dev/null -w "Web UI HTTP %{http_code}\n" http://localhost:3000/
+
+          # Restart once to prove the second-boot path (existing database and secrets) works too
+          docker restart -t 60 oa-test
+          for i in $(seq 1 30); do
+            STATUS="$(docker inspect -f '{{.State.Health.Status}}' oa-test)"
+            echo "[restart $i] health: $STATUS"
+            [ "$STATUS" = "healthy" ] && break
+            sleep 10
+          done
+          docker logs --since 5m oa-test 2>&1 | tail -n 60
+          test "$STATUS" = "healthy"
+
+      - name: Push image
+        if: env.SHOULD_BUILD == 'true'
+        run: |
+          docker push "${IMAGE}:${OA_VERSION}"
+          docker push "${IMAGE}:latest"
+          {
+            echo "### Published"
+            echo "- \`${IMAGE}:latest\`"
+            echo "- \`${IMAGE}:${OA_VERSION}\` (Meilisearch ${MEILI_VERSION}, Tika ${TIKA_VERSION})"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean up test container
+        if: always()
+        run: docker rm -f oa-test >/dev/null 2>&1 || true

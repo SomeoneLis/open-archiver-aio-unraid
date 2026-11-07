@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Container version="2">
+  <Name>open-archiver-aio</Name>
+  <Repository>ghcr.io/someonelis/open-archiver-aio:latest</Repository>
+  <Registry>https://github.com/SomeoneLis/open-archiver-aio-unraid/pkgs/container/open-archiver-aio</Registry>
+  <Network>bridge</Network>
+  <Privileged>false</Privileged>
+  <Shell>bash</Shell>
+  <Overview>All-in-one Open Archiver for Unraid: the self-hosted email archive (PST, mbox, EML, IMAP, Google Workspace, Microsoft 365) with PostgreSQL 17, Valkey, Meilisearch and Apache Tika bundled in one container. Full-text search covers email bodies and attachments (PDF, Word, Excel and more). The image is rebuilt automatically when Open Archiver publishes a release.
+
+Set APP_URL to the exact address you open in your browser before the first start.</Overview>
+  <Category>Productivity: Tools: Backup:</Category>
+  <WebUI>http://[IP]:[PORT:3000]</WebUI>
+  <Icon>https://raw.githubusercontent.com/LogicLabs-OU/OpenArchiver/main/docs/public/logo-sq.svg</Icon>
+  <Project>https://github.com/LogicLabs-OU/OpenArchiver</Project>
+  <Support>https://github.com/SomeoneLis/open-archiver-aio-unraid/issues</Support>
+  <TemplateURL>https://raw.githubusercontent.com/SomeoneLis/open-archiver-aio-unraid/main/templates/open-archiver-aio.xml</TemplateURL>
+  <ExtraParams>--stop-timeout 60</ExtraParams>
+  <Date>2026-11-07</Date>
+  <Changes>
+### 2026-11-07
+- Initial release: Open Archiver (tracks upstream releases), PostgreSQL 17, Valkey, Meilisearch and Apache Tika under s6-overlay v3.
+- Secrets generated on first boot and persisted to /config/keys.
+- Automatic Meilisearch upgrade handling when a new image ships a newer search engine.
+  </Changes>
+
+  <!-- Port -->
+  <Config Name="Web UI Port" Target="3000" Default="3000" Mode="tcp" Description="Open Archiver web interface. If you change the host port, change APP_URL to match." Type="Port" Display="always" Required="true" Mask="false">3000</Config>
+
+  <!-- Paths -->
+  <Config Name="Appdata" Target="/config" Default="/mnt/user/appdata/open-archiver" Mode="rw" Description="Database, search index, queue and the generated keys (keys/). Keep it on the cache pool and include it in your backups." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/open-archiver</Config>
+  <Config Name="Archive Storage" Target="/data" Default="/mnt/user/email-archive" Mode="rw" Description="Where archived emails and attachments are stored. Expect roughly the size of your unique mail. A user share on the array is fine." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/email-archive</Config>
+  <Config Name="Import Folder (PST/mbox/EML)" Target="/imports" Default="/mnt/user/PST" Mode="ro" Description="Read-only folder with files to import. In Open Archiver choose PST Import > Local Path and enter /imports/yourfile.pst." Type="Path" Display="always" Required="false" Mask="false">/mnt/user/PST</Config>
+
+  <!-- Required settings -->
+  <Config Name="APP_URL" Target="APP_URL" Default="http://YOUR-UNRAID-IP:3000" Description="The exact URL you use in the browser, e.g. http://192.168.1.10:3000 (or your reverse-proxy https address). Logins and uploads fail if this does not match." Type="Variable" Display="always" Required="true" Mask="false">http://YOUR-UNRAID-IP:3000</Config>
+  <Config Name="Timezone" Target="TZ" Default="Europe/Dublin" Description="Timezone for logs and schedules." Type="Variable" Display="always" Required="false" Mask="false">Europe/Dublin</Config>
+  <Config Name="Storage Encryption" Target="STORAGE_ENCRYPTION" Default="true|false" Description="Encrypt archived files at rest (AES-256). The key is created on first boot in /config/keys/storage-encryption.key: back it up, without it the archive cannot be read. Once a key exists it is always used." Type="Variable" Display="always" Required="false" Mask="false">true</Config>
+
+  <!-- Performance -->
+  <Config Name="Ingestion Workers" Target="INGESTION_WORKER_CONCURRENCY" Default="5" Description="Mailbox jobs processed at once. Raise on servers with more RAM (max 32)." Type="Variable" Display="advanced" Required="false" Mask="false">5</Config>
+  <Config Name="Indexing Worker Heap (MB)" Target="INDEXING_WORKER_MAX_OLD_SPACE_MB" Default="2048" Description="Memory ceiling for the indexing worker." Type="Variable" Display="advanced" Required="false" Mask="false">2048</Config>
+  <Config Name="Meilisearch Indexing Memory" Target="MEILI_MAX_INDEXING_MEMORY" Default="" Description="Optional cap for Meilisearch while indexing, e.g. 2GiB. Blank = Meilisearch default (2/3 of RAM)." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Meilisearch Snapshot Interval (s)" Target="MEILI_SCHEDULE_SNAPSHOT" Default="86400" Description="Seconds between search-index snapshots in /config/meilisearch/snapshots. Each snapshot is a full copy of the index." Type="Variable" Display="advanced" Required="false" Mask="false">86400</Config>
+  <Config Name="Tika Enabled" Target="TIKA_ENABLED" Default="true|false" Description="Use the bundled Apache Tika for attachment text (PDF, Office, and more). false = built-in extractors only (PDF, DOCX, XLSX)." Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
+  <Config Name="Tika Java Options" Target="TIKA_JAVA_OPTS" Default="-Xmx1g" Description="JVM options for Tika." Type="Variable" Display="advanced" Required="false" Mask="false">-Xmx1g</Config>
+  <Config Name="Upload Size Limit" Target="BODY_SIZE_LIMIT" Default="100M" Description="Largest file accepted through browser upload. Large PSTs should use the Import Folder instead." Type="Variable" Display="advanced" Required="false" Mask="false">100M</Config>
+
+  <!-- Behaviour -->
+  <Config Name="Allow Deletion" Target="ENABLE_DELETION" Default="false|true" Description="Allow deleting archived emails and ingestion sources." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
+  <Config Name="Meilisearch Upgrade Mode" Target="MEILI_UPGRADE_MODE" Default="dumpless|rebuild" Description="When a new image ships a newer Meilisearch: dumpless = migrate the index in place (after a backup copy); rebuild = start an empty index, then run Admin > Index > Full rebuild." Type="Variable" Display="advanced" Required="false" Mask="false">dumpless</Config>
+  <Config Name="Meilisearch Upgrade Backup" Target="MEILI_UPGRADE_BACKUP" Default="true|false" Description="Copy the index before a dumpless upgrade (needs free space equal to the index size)." Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
+</Container>

@@ -1,0 +1,2 @@
+#!/command/with-contenv bash
+exec su-exec valkey valkey-server /config/valkey/valkey.conf 2>&1

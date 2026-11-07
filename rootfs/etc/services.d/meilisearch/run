@@ -1,0 +1,19 @@
+#!/command/with-contenv bash
+# shellcheck disable=SC1091
+. /config/.runtime-env
+
+export MEILI_SCHEDULE_SNAPSHOT="${MEILI_SCHEDULE_SNAPSHOT:-86400}"
+# Unraid passes blank template fields as empty variables; Meilisearch rejects empty values.
+[ -z "${MEILI_MAX_INDEXING_MEMORY:-}" ] && unset MEILI_MAX_INDEXING_MEMORY
+if [ -f /run/oa/meili-upgrade ]; then
+    echo "[meilisearch] Starting with --experimental-dumpless-upgrade."
+    export MEILI_EXPERIMENTAL_DUMPLESS_UPGRADE=true
+fi
+
+exec meilisearch \
+    --db-path /config/meilisearch/data.ms \
+    --dump-dir /config/meilisearch/dumps \
+    --snapshot-dir /config/meilisearch/snapshots \
+    --http-addr 127.0.0.1:7700 \
+    --env production \
+    --no-analytics 2>&1
