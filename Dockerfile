@@ -15,15 +15,20 @@ FROM getmeili/meilisearch:${MEILI_VERSION} AS meili
 # Both end up as /out/tika-server/tika-server.jar (+ lib/), started with the same classpath.
 FROM apache/tika:${TIKA_VERSION} AS tika
 USER root
-RUN mkdir -p /out/tika-server/lib \
-    && if [ -f /opt/tika-server/tika-server.jar ]; then \
-         cp -a /opt/tika-server/. /out/tika-server/; \
-       else \
-         JAR="$(find / -xdev -maxdepth 2 -type f -name 'tika-server-standard-*.jar' 2>/dev/null | head -n 1)"; \
-         test -n "${JAR}"; \
-         cp "${JAR}" /out/tika-server/tika-server.jar; \
-       fi \
-    && ls -la /out/tika-server
+RUN set -eux; \
+    find / -xdev \( -name 'tika-server*.jar' -o -name 'tika-app*.jar' \) -not -path '/proc/*' 2>/dev/null | head -n 20; \
+    mkdir -p /out/tika-server/lib; \
+    JAR="$(find / -xdev -type f \( -name 'tika-server.jar' -o -name 'tika-server-standard-*.jar' \) -not -path '*/lib/*' 2>/dev/null | head -n 1)"; \
+    echo "Tika server jar: ${JAR}"; \
+    test -n "${JAR}"; \
+    if [ -d "$(dirname "${JAR}")/lib" ]; then \
+        cp -a "$(dirname "${JAR}")/." /out/tika-server/; \
+    fi; \
+    if [ "$(basename "${JAR}")" != "tika-server.jar" ]; then \
+        cp "${JAR}" /out/tika-server/tika-server.jar; \
+    fi; \
+    ls -la /out/tika-server; \
+    test -f /out/tika-server/tika-server.jar
 
 # --- Final image: the official Open Archiver image (node:22-alpine) plus the companion services ---
 FROM logiclabshq/open-archiver:${OA_VERSION}
