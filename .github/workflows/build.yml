@@ -172,6 +172,17 @@ jobs:
           docker logs --since 5m oa-test 2>&1 | tail -n 80
           test "$RESULT" -eq 0
 
+          # Simulate a server reboot or power cut: kill without a clean shutdown, then start again.
+          # PostgreSQL leaves stale lock files behind; the container must recover from them.
+          docker kill oa-test
+          sleep 2
+          docker start oa-test
+          sleep 5
+          RESULT=0
+          wait_healthy unclean-restart 60 || RESULT=1
+          docker logs --since 3m oa-test 2>&1 | tail -n 80
+          test "$RESULT" -eq 0
+
       - name: Upload container log
         if: always() && env.SHOULD_BUILD == 'true'
         uses: actions/upload-artifact@v4
