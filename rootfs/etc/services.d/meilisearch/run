@@ -2,7 +2,12 @@
 # shellcheck disable=SC1091
 . /config/.runtime-env
 
-export MEILI_SCHEDULE_SNAPSHOT="${MEILI_SCHEDULE_SNAPSHOT:-86400}"
+# Snapshots are a full copy of the index, and the index can always be rebuilt from the archive
+# (Admin > Index > Full rebuild). They are off unless MEILI_SCHEDULE_SNAPSHOT is set to seconds.
+case "${MEILI_SCHEDULE_SNAPSHOT:-}" in
+    ''|0|false|off|no) unset MEILI_SCHEDULE_SNAPSHOT ;;
+    *) echo "[meilisearch] Index snapshots every ${MEILI_SCHEDULE_SNAPSHOT}s (each one is a full copy of the index)." ;;
+esac
 # Unraid passes blank template fields as empty variables; Meilisearch rejects empty values.
 [ -z "${MEILI_MAX_INDEXING_MEMORY:-}" ] && unset MEILI_MAX_INDEXING_MEMORY
 if [ -f /run/oa/meili-upgrade ]; then

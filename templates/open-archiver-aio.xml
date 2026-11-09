@@ -18,6 +18,11 @@ Set APP_URL to the exact address you open in your browser before the first start
   <ExtraParams>--stop-timeout 60</ExtraParams>
   <Date>2026-11-07</Date>
   <Changes>
+### 2026-11-09
+- Recovers from unclean shutdowns (stale PostgreSQL lock files).
+- Warns in the log when appdata or archive storage is nearly full.
+- Meilisearch snapshots are now off by default; the upgrade backup copy is skipped when it would not fit.
+
 ### 2026-11-07
 - Initial release: Open Archiver (tracks upstream releases), PostgreSQL 17, Valkey, Meilisearch and Apache Tika under s6-overlay v3.
 - Secrets generated on first boot and persisted to /config/keys.
@@ -41,7 +46,7 @@ Set APP_URL to the exact address you open in your browser before the first start
   <Config Name="Ingestion Workers" Target="INGESTION_WORKER_CONCURRENCY" Default="5" Description="Mailbox jobs processed at once. Raise on servers with more RAM (max 32)." Type="Variable" Display="advanced" Required="false" Mask="false">5</Config>
   <Config Name="Indexing Worker Heap (MB)" Target="INDEXING_WORKER_MAX_OLD_SPACE_MB" Default="2048" Description="Memory ceiling for the indexing worker." Type="Variable" Display="advanced" Required="false" Mask="false">2048</Config>
   <Config Name="Meilisearch Indexing Memory" Target="MEILI_MAX_INDEXING_MEMORY" Default="" Description="Optional cap for Meilisearch while indexing, e.g. 2GiB. Blank = Meilisearch default (2/3 of RAM)." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
-  <Config Name="Meilisearch Snapshot Interval (s)" Target="MEILI_SCHEDULE_SNAPSHOT" Default="86400" Description="Seconds between search-index snapshots in /config/meilisearch/snapshots. Each snapshot is a full copy of the index." Type="Variable" Display="advanced" Required="false" Mask="false">86400</Config>
+  <Config Name="Meilisearch Snapshot Interval (s)" Target="MEILI_SCHEDULE_SNAPSHOT" Default="" Description="Blank = no snapshots (recommended: the index can be rebuilt from the archive). A number = seconds between snapshots in /config/meilisearch/snapshots; each one is a full copy of the index and needs that much free space." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
   <Config Name="Tika Enabled" Target="TIKA_ENABLED" Default="true|false" Description="Use the bundled Apache Tika for attachment text (PDF, Office, and more). false = built-in extractors only (PDF, DOCX, XLSX)." Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
   <Config Name="Tika Java Options" Target="TIKA_JAVA_OPTS" Default="-Xmx1g" Description="JVM options for Tika." Type="Variable" Display="advanced" Required="false" Mask="false">-Xmx1g</Config>
   <Config Name="Upload Size Limit" Target="BODY_SIZE_LIMIT" Default="100M" Description="Largest file accepted through browser upload. Large PSTs should use the Import Folder instead." Type="Variable" Display="advanced" Required="false" Mask="false">100M</Config>

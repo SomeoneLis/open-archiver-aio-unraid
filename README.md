@@ -56,7 +56,11 @@ The container generates its secrets on first start and keeps them in `/config/ke
 | `encryption.key` | Encrypting stored ingestion credentials |
 | `jwt.secret`, `meili.key`, `pg.password`, `pg-super.password`, `valkey.password` | Internal services |
 
-Copy this folder somewhere safe after the first start. To provide your own values instead, set `JWT_SECRET`, `ENCRYPTION_KEY`, `STORAGE_ENCRYPTION_KEY` or `MEILI_MASTER_KEY` before the first start.
+Copy this folder somewhere safe after the first start.
+
+## Disk space
+
+Keep an eye on the disk that holds appdata. The database and search index grow with the archive, and if that disk fills up PostgreSQL stops and the container will not start until space is freed. The container logs a warning when less than 5 GB is free. Point **Archive Storage** at a share that writes to the array, not to the cache pool, or a large import will fill the cache. To provide your own values instead, set `JWT_SECRET`, `ENCRYPTION_KEY`, `STORAGE_ENCRYPTION_KEY` or `MEILI_MASTER_KEY` before the first start.
 
 ## Meilisearch upgrades
 
@@ -78,7 +82,7 @@ All Open Archiver environment variables can be added to the container as extra v
 | `INGESTION_WORKER_CONCURRENCY` | `5` | Mailbox jobs at once |
 | `INDEXING_WORKER_MAX_OLD_SPACE_MB` | `2048` | Indexing worker memory ceiling |
 | `MEILI_MAX_INDEXING_MEMORY` | Meilisearch default | Cap Meilisearch indexing memory, e.g. `2GiB` |
-| `MEILI_SCHEDULE_SNAPSHOT` | `86400` | Seconds between index snapshots |
+| `MEILI_SCHEDULE_SNAPSHOT` | off | Seconds between index snapshots (each is a full copy of the index) |
 | `TIKA_ENABLED` | `true` | Use Tika for attachment text |
 | `TIKA_JAVA_OPTS` | `-Xmx1g` | Tika JVM options |
 | `ENABLE_DELETION` | `false` | Allow deleting emails and sources |

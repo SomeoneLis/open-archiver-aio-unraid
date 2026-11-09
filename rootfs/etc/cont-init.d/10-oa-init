@@ -20,6 +20,20 @@ RUNTIME_ENV="$CONFIG/.runtime-env"
 
 log "Open Archiver AIO ${OA_AIO_VERSION:-unknown} starting."
 
+# Free space, in KiB, on the disk holding a path
+free_kb() { df -Pk "$1" 2>/dev/null | awk 'NR==2 {print $4}'; }
+
+# A full appdata disk stops PostgreSQL, Valkey and Meilisearch; say so plainly before anything fails
+for p in "$CONFIG" "$DATA"; do
+    avail="$(free_kb "$p")"
+    if [ -n "$avail" ] && [ "$avail" -lt 5242880 ]; then
+        log "WARNING: only $((avail / 1024)) MB free on the disk holding $p."
+        if [ "$avail" -lt 524288 ]; then
+            log "ERROR: $p is (almost) full. PostgreSQL cannot start without free space. Free up space on that disk and start the container again."
+        fi
+    fi
+done
+
 mkdir -p "$KEYS" "$PGDATA" "$VALKEY_DIR" "$MEILI_DIR/dumps" "$MEILI_DIR/snapshots" "$LOGS" "$DATA" /run/postgresql /run/oa
 chmod 700 "$KEYS"
 
@@ -231,8 +245,13 @@ if [ -f "$MEILI_DB/VERSION" ]; then
             *)
                 if [ "${MEILI_UPGRADE_BACKUP:-true}" = "true" ]; then
                     rm -rf "$MEILI_DIR"/data.ms.backup-*
-                    log "Backing up the index to data.ms.backup-$MEILI_DB_VERSION before upgrading..."
-                    cp -a "$MEILI_DB" "$MEILI_DIR/data.ms.backup-$MEILI_DB_VERSION"
+                    NEED_KB="$(du -sk "$MEILI_DB" | cut -f1)"
+                    if [ "$(free_kb "$MEILI_DIR")" -gt $((NEED_KB + 2097152)) ]; then
+                        log "Backing up the index to data.ms.backup-$MEILI_DB_VERSION before upgrading..."
+                        cp -a "$MEILI_DB" "$MEILI_DIR/data.ms.backup-$MEILI_DB_VERSION"
+                    else
+                        log "Not enough free space to copy the index first ($((NEED_KB / 1024)) MB needed); upgrading without a backup. The index can be rebuilt from the archive if needed."
+                    fi
                 fi
                 touch /run/oa/meili-upgrade
                 log "Meilisearch will run a dumpless upgrade on this start."
