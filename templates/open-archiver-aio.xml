@@ -11,7 +11,7 @@
 Set APP_URL to the exact address you open in your browser before the first start.</Overview>
   <Category>Productivity: Tools: Backup:</Category>
   <WebUI>http://[IP]:[PORT:3000]</WebUI>
-  <Icon>https://raw.githubusercontent.com/LogicLabs-OU/OpenArchiver/main/docs/public/logo-sq.svg</Icon>
+  <Icon>https://raw.githubusercontent.com/SomeoneLis/open-archiver-aio-unraid/main/templates/open-archiver-aio.png</Icon>
   <Project>https://github.com/LogicLabs-OU/OpenArchiver</Project>
   <Support>https://github.com/SomeoneLis/open-archiver-aio-unraid/issues</Support>
   <TemplateURL>https://raw.githubusercontent.com/SomeoneLis/open-archiver-aio-unraid/main/templates/open-archiver-aio.xml</TemplateURL>
