@@ -6,6 +6,7 @@ A Claude desktop extension that lets Claude search, read and (with your approval
 |---|---|---|
 | `search_emails` | Full-text search, including attachment text, with sender/recipient/date filters | No |
 | `get_email` | Reads one email in full, with attachment names and the rest of its thread | No |
+| `read_attachment` | Reads an attachment's text (Excel, Word, PowerPoint, PDF, CSV and more). With `find`, returns only the lines that mention a site, code or name | No |
 | `archive_overview` | Archive totals, ingestion sources and indexing health | No |
 | `delete_emails` | Permanently deletes the emails you approved | **Yes** |
 
@@ -14,6 +15,7 @@ A Claude desktop extension that lets Claude search, read and (with your approval
 - It runs on your computer inside the Claude desktop app, using the app's built-in Node.js. Nothing to install.
 - It talks only to the Open Archiver address you give it, using an API key. It opens no ports and is not reachable from the internet.
 - It has no third-party dependencies: the whole connector is one file, `server/index.js`.
+- Attachment text comes from Open Archiver's search index (extracted by Apache Tika, so PDFs work too). For emails not indexed yet, Excel, Word, PowerPoint, CSV and text files are downloaded and read directly; PDFs then have to wait for indexing.
 - The API key is stored in your operating system's secure store (Windows Credential Manager), not in a text file.
 
 ## Setup
@@ -43,7 +45,7 @@ Give Claude its own account with only the permissions it needs, so its API key c
 
 The first time Claude uses each tool, the app asks for permission:
 
-- `search_emails`, `get_email`, `archive_overview`: choose **Always allow**.
+- `search_emails`, `get_email`, `read_attachment`, `archive_overview`: choose **Always allow**.
 - `delete_emails`: always choose **Allow once**, so every deletion needs your click.
 
 Deletion also only works while **Allow Deletion** is `true` on the container. Leave it `false` when you are not cleaning up.
@@ -58,6 +60,7 @@ Deletion also only works while **Allow Deletion** is `true` on the container. Le
 ## Development
 
 ```bash
-node test/mock-and-run.js     # protocol and tool tests against a mock Open Archiver API
+node test/mock-and-run.js       # protocol and tool tests against a mock Open Archiver API
+node test/attachments-test.js   # attachment reading: index text, Office/CSV files, find
 npx @anthropic-ai/mcpb pack . open-archiver.mcpb
 ```

@@ -73,7 +73,7 @@ srv.listen(0, '127.0.0.1', async () => {
   check('initialize negotiates 2025-06-18', init.result.protocolVersion === '2025-06-18', init);
   child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n');
   const list = await call('tools/list', {});
-  check('4 tools listed', list.result.tools.length === 4, list);
+  check('5 tools listed', list.result.tools.length === 5, list);
   check('delete marked destructive, others read-only', list.result.tools.every((t) => t.name === 'delete_emails' ? t.annotations.destructiveHint && !t.annotations.readOnlyHint : t.annotations.readOnlyHint), list.result.tools.map((t) => t.annotations));
 
   const s = await tool('search_emails', { query: 'survey cork', from: '*@example.com', search_in: ['body', 'subject'], date_from: '2018-01-01', match_all_words: true });
