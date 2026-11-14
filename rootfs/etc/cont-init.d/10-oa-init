@@ -19,6 +19,9 @@ LOGS="$CONFIG/logs"
 RUNTIME_ENV="$CONFIG/.runtime-env"
 
 log "Open Archiver AIO ${OA_AIO_VERSION:-unknown} starting."
+if [ -f /etc/oa-aio/patches.txt ]; then
+    while IFS= read -r line; do log "Image fix: $line"; done < /etc/oa-aio/patches.txt
+fi
 
 # Free space, in KiB, on the disk holding a path
 free_kb() { df -Pk "$1" 2>/dev/null | awk 'NR==2 {print $4}'; }

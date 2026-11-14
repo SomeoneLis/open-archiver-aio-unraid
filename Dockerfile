@@ -82,6 +82,14 @@ RUN meilisearch --version \
 COPY rootfs/ /
 RUN chmod +x /etc/cont-init.d/* /etc/services.d/*/run /usr/local/bin/oa-healthcheck
 
+# 5. Fixes applied to the upstream build (each one reports to /etc/oa-aio/patches.txt and is skipped,
+#    not failed, if upstream has changed the code it targets)
+COPY patches/ /tmp/oa-patches/
+RUN node /tmp/oa-patches/tika-hang.js /app/packages/backend/dist/services/OcrService.js \
+    && node --check /app/packages/backend/dist/services/OcrService.js \
+    && rm -rf /tmp/oa-patches \
+    && cat /etc/oa-aio/patches.txt
+
 ENV NODE_ENV=production \
     PORT_FRONTEND=3000 \
     PORT_BACKEND=4000 \

@@ -16,8 +16,12 @@ Set APP_URL to the exact address you open in your browser before the first start
   <Support>https://github.com/SomeoneLis/open-archiver-aio-unraid/issues</Support>
   <TemplateURL>https://raw.githubusercontent.com/SomeoneLis/open-archiver-aio-unraid/main/templates/open-archiver-aio.xml</TemplateURL>
   <ExtraParams>--stop-timeout 60</ExtraParams>
-  <Date>2026-11-07</Date>
+  <Date>2026-11-14</Date>
   <Changes>
+### 2026-11-14
+- Fixes indexing hanging on Tika requests (`assert(!this.paused)` errors, indexing jobs stalling).
+- New optional variable TIKA_HARD_TIMEOUT_MS (default 300000).
+
 ### 2026-11-09
 - Recovers from unclean shutdowns (stale PostgreSQL lock files).
 - Warns in the log when appdata or archive storage is nearly full.

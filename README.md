@@ -67,7 +67,7 @@ Keep an eye on the disk that holds appdata. The database and search index grow w
 A Meilisearch index only opens with the version that wrote it. When a new image ships a newer Meilisearch, the container handles it on start:
 
 - `MEILI_UPGRADE_MODE=dumpless` (default): copies the index to `data.ms.backup-<old version>` and runs Meilisearch's dumpless upgrade.
-- `MEILI_UPGRADE_MODE=rebuild`: moves the old index aside and starts empty. Then run **Admin > Index > Full rebuild** to rebuild it from the archive.
+- `MEILI_UPGRADE_MODE=rebuild`: moves the old index aside and starts empty. Then run **Ingestions > Reindex All > Full rebuild** to rebuild it from the archive.
 
 The search index can always be rebuilt from the archive, so neither path risks your mail. If a dumpless upgrade fails, switch to `rebuild` and restart.
 
@@ -85,9 +85,16 @@ All Open Archiver environment variables can be added to the container as extra v
 | `MEILI_SCHEDULE_SNAPSHOT` | off | Seconds between index snapshots (each is a full copy of the index) |
 | `TIKA_ENABLED` | `true` | Use Tika for attachment text |
 | `TIKA_JAVA_OPTS` | `-Xmx1g` | Tika JVM options |
+| `TIKA_HARD_TIMEOUT_MS` | `300000` | Longest one attachment's text extraction may take before it is indexed without text (see Fixes) |
 | `ENABLE_DELETION` | `false` | Allow deleting emails and sources |
 
 The template sets `--stop-timeout 60` so PostgreSQL and Meilisearch shut down cleanly.
+
+## Fixes to upstream
+
+The image applies small fixes to the upstream build. Each one is listed in the container log at start (`Image fix: ...`) and is skipped, not failed, if upstream changes the code it targets.
+
+- **Tika requests that hang indexing** (`patches/tika-hang.js`). Upstream sends every Tika request with `Connection: close`. Node's HTTP client can then fail with `AssertionError: assert(!this.paused)` while reading Tika's reply, and the request never settles, so its indexing job hangs until it is marked stalled and no emails get indexed. The fix keeps the Tika connection open and gives each extraction a hard deadline (`TIKA_HARD_TIMEOUT_MS`), after which the attachment is indexed without its text.
 
 ## Layout
 
@@ -96,6 +103,7 @@ Dockerfile                      Official Open Archiver image + PostgreSQL, Valke
 rootfs/etc/cont-init.d/         Secrets, PostgreSQL init and hardening, Meilisearch upgrade handling
 rootfs/etc/services.d/          postgres, valkey, meilisearch, tika, oa-backend, oa-frontend, oa-workers
 rootfs/usr/local/bin/oa-healthcheck
+patches/                        Fixes applied to the upstream build (see Fixes to upstream)
 .github/workflows/build.yml     Daily upstream check, build, smoke test, push to GHCR
 templates/open-archiver-aio.xml Unraid template
 ```
