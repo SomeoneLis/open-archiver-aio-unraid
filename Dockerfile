@@ -87,6 +87,8 @@ RUN chmod +x /etc/cont-init.d/* /etc/services.d/*/run /usr/local/bin/oa-healthch
 COPY patches/ /tmp/oa-patches/
 RUN node /tmp/oa-patches/tika-hang.js /app/packages/backend/dist/services/OcrService.js \
     && node --check /app/packages/backend/dist/services/OcrService.js \
+    && node /tmp/oa-patches/strip-encoded.js /app/packages/backend/dist/services/IndexingService.js \
+    && node --check /app/packages/backend/dist/services/IndexingService.js \
     && rm -rf /tmp/oa-patches \
     && cat /etc/oa-aio/patches.txt
 

@@ -85,6 +85,7 @@ All Open Archiver environment variables can be added to the container as extra v
 | `MEILI_SCHEDULE_SNAPSHOT` | off | Seconds between index snapshots (each is a full copy of the index) |
 | `TIKA_ENABLED` | `true` | Use Tika for attachment text |
 | `TIKA_JAVA_OPTS` | `-Xmx1g` | Tika JVM options |
+| `INDEXING_STRIP_ENCODED` | `true` | Keep base64 data out of the search index (see Fixes) |
 | `TIKA_HARD_TIMEOUT_MS` | `300000` | Longest one attachment's text extraction may take before it is indexed without text (see Fixes) |
 | `ENABLE_DELETION` | `false` | Allow deleting emails and sources |
 
@@ -95,6 +96,8 @@ The template sets `--stop-timeout 60` so PostgreSQL and Meilisearch shut down cl
 The image applies small fixes to the upstream build. Each one is listed in the container log at start (`Image fix: ...`) and is skipped, not failed, if upstream changes the code it targets.
 
 - **Tika requests that hang indexing** (`patches/tika-hang.js`). Upstream sends every Tika request with `Connection: close`. Node's HTTP client can then fail with `AssertionError: assert(!this.paused)` while reading Tika's reply, and the request never settles, so its indexing job hangs until it is marked stalled and no emails get indexed. The fix keeps the Tika connection open and gives each extraction a hard deadline (`TIKA_HARD_TIMEOUT_MS`), after which the attachment is indexed without its text.
+
+- **Encoded data filling the search index** (`patches/strip-encoded.js`). Email bodies can carry base64 data as text (inline images and similar). Meilisearch turns it into millions of random "words", and its list of distinct words is stored as one LMDB value. LMDB cannot write a value over about 2 GB on Linux, so indexing then fails with `I/O error (os error 5)` and the index cannot grow. The fix removes `data:` URIs and long base64 runs (40+ characters mixing upper case, lower case and digits) from the text sent to the index. Words, codes, phone numbers, IDs and URLs are kept, and the archived emails are not changed. `INDEXING_STRIP_ENCODED=false` turns it off. `tools/vocab-report.js` shows what fills an existing index and estimates the effect.
 
 ## Layout
 

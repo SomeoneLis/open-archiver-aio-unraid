@@ -39,6 +39,16 @@ function classify(t) {
     return len <= 12 ? 'code, letters+digits <=12' : 'code, letters+digits 13-24';
 }
 
+// Same filter as patches/strip-encoded.js, to estimate the vocabulary after it.
+function stripEncoded(text) {
+    if (!text) return text;
+    return text
+        .replace(/data:[\w.+-]+\/[\w.+-]+;base64,[A-Za-z0-9+/=\s]*/g, ' ')
+        .replace(/[A-Za-z0-9+/]{40,}={0,2}/g, (run) =>
+            /[A-Z]/.test(run) && /[a-z]/.test(run) && /[0-9]/.test(run) ? ' ' : run
+        );
+}
+
 function tokens(text) {
     if (!text) return [];
     const out = text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
@@ -54,6 +64,16 @@ function tokens(text) {
     const bySource = new Map(); // source -> Set of tokens first seen there
     const byExt = new Map(); // attachment extension -> new distinct tokens
     const fieldNew = { body: 0, subject: 0, attachments: 0 };
+    const filtered = new Set();
+    const filteredByClass = new Map();
+    const addFiltered = (text) => {
+        for (const t of tokens(stripEncoded(text))) {
+            if (filtered.has(t)) continue;
+            filtered.add(t);
+            const cls = classify(t);
+            filteredByClass.set(cls, (filteredByClass.get(cls) || 0) + 1);
+        }
+    };
     let docs = 0;
 
     const add = (tok, source, where, ext) => {
@@ -73,6 +93,9 @@ function tokens(text) {
             const src = d.ingestionSourceId || 'unknown';
             for (const t of tokens(d.subject)) add(t, src, 'subject');
             for (const t of tokens(d.body)) add(t, src, 'body');
+            addFiltered(d.subject);
+            addFiltered(d.body);
+            for (const a of d.attachments || []) addFiltered(a.content);
             let budget = MAX_TOKENS_PER_FIELD;
             for (const a of d.attachments || []) {
                 const ext = ((a.filename || '').match(/\.([a-z0-9]{1,6})$/i) || [, 'none'])[1].toLowerCase();
@@ -98,6 +121,10 @@ function tokens(text) {
     table('By kind of word:', byClass);
     table('By ingestion source:', bySource);
     table('By attachment type (attachments only):', byExt);
+
+    console.log(`\nAfter removing encoded (base64) data: ${filtered.size} distinct words, ${((100 * filtered.size) / vocab.size).toFixed(1)}% of now.`);
+    [...filteredByClass.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12)
+        .forEach(([k, n]) => console.log(`  ${((100 * n) / filtered.size).toFixed(1).padStart(5)}%  ${String(n).padStart(9)}  ${k}`));
 
     const examples = new Map();
     for (const [t, c] of vocab) {
