@@ -104,6 +104,7 @@ rootfs/etc/cont-init.d/         Secrets, PostgreSQL init and hardening, Meilisea
 rootfs/etc/services.d/          postgres, valkey, meilisearch, tika, oa-backend, oa-frontend, oa-workers
 rootfs/usr/local/bin/oa-healthcheck
 patches/                        Fixes applied to the upstream build (see Fixes to upstream)
+tools/vocab-report.js           Shows which kinds of words fill the search index (run inside the container)
 .github/workflows/build.yml     Daily upstream check, build, smoke test, push to GHCR
 templates/open-archiver-aio.xml Unraid template
 ```

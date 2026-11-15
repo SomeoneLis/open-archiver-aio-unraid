@@ -7,6 +7,7 @@ on:
       - "**.md"
       - "templates/**"
       - "mcp/**"
+      - "tools/**"
   schedule:
     # Daily check for a new upstream release or a rebuilt upstream image
     - cron: "17 4 * * *"
